@@ -53,7 +53,7 @@ if(is.null(opt$threads)) {
 
 work_dir <- opt$work_dir
 
-threads <- registerDoParallel(cores = (as.integer(opt$threads)))
+threads <- as.integer(opt$threads)
 
 read_1 <- paste0(opt$input_file, "_R1.fastq")
 read_2 <- paste0(opt$input_file, "_R2.fastq")
@@ -99,16 +99,16 @@ cutadapt_cmd <- paste0("cutadapt -g ^\"N{6}A\" -G ^\"N{6}C\" --discard-untrimmed
                        " -p ", cutadapt_out, "/", basename(read_2),
                        " 2>&1 ", cutadapt_log, "/", basename(opt$input_file), "_cutadapt.log")
 
+execute(cutadapt_cmd, outputfile = )
 
-# cutadapt \
-# -g ^"N{6}A" \
-# -G ^"N{6}C" \
-# --discard-untrimmed \
-# --action=retain \
-# --cores=$(echo ${THREADS}/3 | bc) \
-# --pair-filter=both ${PAIR}_R1.fastq ${PAIR}_R2.fastq \
-# -o data/UMIonly/$(basename ${PAIR})_R1.fastq \
-# -p data/UMIonly/$(basename ${PAIR})_R2.fastq 2>&1 analysis/logs/cutadapt/$(basename ${PAIR})_cutadapt.log
+
+# Step 2: Processing reads with fastp and bowtie2
+
+
+
+
+
+
 
 
 
