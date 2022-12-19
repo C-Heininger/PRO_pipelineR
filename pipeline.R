@@ -137,7 +137,7 @@ new_names <- gsub("\\.R", "\\_R", old_names)
 file.rename(paste0(processing_out, old_names), paste0(processing_out, new_names))
 
 
-# Step 3: Aligning reads to mm39 using STAR aligner
+# Step 3: Aligning reads to mm39 using STAR aligner ####
 
 sorted_out <- paste0(work_dir, "/data/sorted_fastq")
 if(!file.exists(sorted_out)) { dir.create(sorted_out, recursive = TRUE) }
@@ -195,25 +195,58 @@ if(!file.exists(deduped_log)) { dir.create(deduped_log, recursive = TRUE) }
 deduped_file <- paste0(deduped_out, "/", basename(opt$input_file), "_deduped.BAM")
 
 
-# mkdir -p data/deduped_BAM/
-#   mkdir -p analysis/logs/dedup/
-#   
-#   echo -e "Deduplicating BAM files based on UMIs and indexing deduped BAM files... \n"
-# date
-# 
-# for FILE in data/BAM/.*BAM
-# do
-# echo -e "Deduplicating ${FILE} and indexing... \n"
-# date
-# (umi_tools dedup \
-#   -I "$FILE" \
-#   --paired \
-#   --umi-separator=":" \
-#   --output-stats="analysis/logs/dedup/$(basename ${FILE%.BAM})" \
-#   -S "data/deduped_BAM/$(basename ${FILE%.BAM}_deduped.BAM)" \
-# )2>&1 "analysis/logs/dedup/$(basename ${FILE%.BAM})_deduped_${TIMESTAMP}.log" &&
-#   samtools index "data/deduped_BAM/$(basename ${FILE%.BAM}_deduped.BAM)"
-# done
+deduped_cmd <- paste0("(umi_tools dedup -I \"", bam_out, "\" --paired --umi-separator=\":\" --output-stats=\"",
+                      deduped_log, "/", basename(opt$input_file), "\" -S \"", deduped_out, "/", deduped_file, "\") 2>&1 \"",
+                      deduped_log, "/", basename(opt$input_file), "_deduped.log && samtools index \"", deduped_file, "\"")
+
+execute(deduped_cmd, deduped_file)
+
+
+# Step 5: Generating bigwig files for visualization ####
+
+
+bigwig_out <- paste0(work_dir, "/data/bw")
+if(!file.exists(bigwig_out)) { dir.create(bigwig_out, recursive = TRUE) }
+
+bigwig_log <- paste0(logs_dir, "bigwig")
+if(!file.exists(bigwig_log)) { dir.create(bigwig_log, recursive = TRUE) }
+
+
+fwd_out <- paste0(bigwig_out, "/", basename(opt$input_file), "_fwd.bw")
+
+rev_out <- paste0(bigwig_out, "/", basename(opt$input_file), "_rev.bw")
+
+inv_out <- paste0(bigwig_out, "/", basename(opt$input_file), "_rev_inv.bw")
+
+
+fwd_cmd <- paste0("bamCoverage --bam \"", deduped_file, "\" --skipNonCoveredRegions --outFileName \"", fwd_out,
+                  "\" --binSize 1 --numberOfProcessors ", threads, " --normalizeUsing None --Offset 1 --samFlagInclude 82")
+
+rev_cmd <- paste0("bamCoverage --bam \"", deduped_file, "\" --skipNonCoveredRegions --outFileName \"", rev_out,
+                  "\" --binSize 1 --numberOfProcessors ", threads, " --normalizeUsing None --Offset 1 --samFlagInclude 98")
+
+
+execute(fwd_cmd, fwd_out)
+
+execute(rev_cmd, rev_out)
+
+
+tmp_dir <- paste0(workdir, "/tmp")
+if(!file.exists(tmp_dir)) { dir.create(tmp_dir, recursive = TRUE) }
+
+inv_cmd <- paste0("bigWigToBedGraph ", rev_out, " \"", tmp_dir, "/", basename(opt$input_file), ".bedgraph\" && cat \"",
+                  tmp_dir, "/", basename(opt$input_file), ".bedgraph\" | awk 'BEGIN{OFS=\"t\"} {print $1,$2,$3,-1*$4}' | sort -S 2G -k1,1, -k2,2n > \"",
+                  tmp_dir, "/", basename(opt$input_file), "_inv.bedgraph\" && bedGraphToBigWig \"", tmp_dir, "/", basename(opt$input_file),
+                  "_inv.bedgraph\" ", opt$chrom_sizes, " \"", inv_out, "\"")
+
+execute(inv_cmd, inv_out)
+
+
+
+
+
+
+
 
 
 
