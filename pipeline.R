@@ -55,30 +55,26 @@ work_dir <- opt$work_dir
 logs_dir <- paste0(work_dir, "/analysis/logs")
 if(!file.exists(logs_dir)) { dir.create(logs_dir, recursive = TRUE) }
 
-threads <- as.integer(opt$threads)
-
 read_1 <- paste0(opt$input_file, "_R1.fastq")
 read_2 <- paste0(opt$input_file, "_R2.fastq")
 
 
+threads <- as.integer(opt$threads)
+
+
 setwd(work_dir)
 
-# Load package for execute function or define if package is not installed ####
+# Define execute function ####
 
-if(require("execute")) {
-  library(execute)
-} else {
-
-  execute <- function(x, outputfile = NA, intern = FALSE, quitOnError = FALSE) {
-    if(!is.na(outputfile) && file.exists(outputfile)) {
-      cat("Output for step exists, skipping this step\n");
-      return("")
-    }
-    cat("----", x, "\n"); res <- system(x, intern = intern); cat(">>>>", res[1], "\n")
-    if(res[1] >= 1) {
-      cat("Error external process did not finish \n\n");
-      if(quitOnError) q("no")
-    }
+execute <- function(x, outputfile = NA, intern = FALSE, quitOnError = FALSE) {
+  if(!is.na(outputfile) && file.exists(outputfile)) {
+    cat("Output for step exists, skipping this step\n");
+    return("")
+  }
+  cat("----", x, "\n"); res <- system(x, intern = intern); cat(">>>>", res[1], "\n")
+  if(res[1] >= 1) {
+    cat("Error external process did not finish \n\n");
+    if(quitOnError) q("no")
   }
 }
 
@@ -95,7 +91,7 @@ cutadapt_threads <- as.integer(threads / 3)
 
 
 cutadapt_cmd <- paste0("cutadapt -g ^\"N{6}A\" -G ^\"N{6}C\" --discard-untrimmed --action=retain --cores=",
-                       cutadapt_threads, "--pair-filter=both ", read_1, " ", read_2,
+                       cutadapt_threads, " --pair-filter=both ", read_1, " ", read_2,
                        " -o ", cutadapt_out, "/", basename(read_1), " -p ", cutadapt_out, "/", basename(read_2),
                        " 2>&1 ", cutadapt_log, "/", basename(opt$input_file), "_cutadapt.log")
 
@@ -128,7 +124,7 @@ processing_cmd <- paste0("(fastp -i ", cutadapt_out, "/", basename(read_1), " -I
 execute(processing_cmd, outputfile = paste0(processing_out, "/", basename(read_1)))
 
 
-# Renaming output from bowtie2 
+# Step 2.1: Renaming output from bowtie2 ####
 
 old_names <- list.files(path = processing_out)
 
@@ -145,8 +141,8 @@ if(!file.exists(sorted_out)) { dir.create(sorted_out, recursive = TRUE) }
 align_out <- paste0(work_dir, "/data/BAM")
 if(!file.exists(align_out)) { dir.create(align_out, recursive = TRUE) }
 
-sorted_files <- c(paste0(work_dir, "/", sorted_out, "/", opt$input_file, "_R1_sorted.fastq"),
-                  paste0(work_dir, "/", sorted_out, "/", opt$input_file, "_R2_sorted.fastq"))
+sorted_files <- c(paste0(sorted_out, "/", basename(opt$input_file), "_R1_sorted.fastq"),
+                  paste0(sorted_out, "/", basename(opt$input_file), "_R2_sorted.fastq"))
 
 sort1_cmd <- paste0("fastq-sort -n -S 4G \"", processing_out, "/", basename(read_1), "\" > ", sorted_files[1])
 
@@ -157,7 +153,7 @@ execute(sort1_cmd, sorted_files[1])
 execute(sort2_cmd, sorted_files[2])
 
 
-aligned_file <- c(paste0(work_dir, "/", align_out, "/", basename(opt$input_file), "_Aligned.out.sam"))
+aligned_file <- c(paste0(align_out, "/", basename(opt$input_file), "_Aligned.out.sam"))
 
 
 align_cmd <- paste0("STAR --runThreadN ", threads, " --genomeDir ", opt&genome_index, 
@@ -166,6 +162,8 @@ align_cmd <- paste0("STAR --runThreadN ", threads, " --genomeDir ", opt&genome_i
 
 execute(align_cmd, aligned_file)
 
+
+# Step 3.1: Sort and index with samtools ####
 
 bam_out <- paste0(align_out, "/", basename(opt$input_file), ".BAM")
 
@@ -184,7 +182,6 @@ execute(samindex_cmd, outputfile = paste0(bam_out, ".bai"))
 
 # Step 4: Deduplicating BAM files based on UMIs ####
 
-
 deduped_out <- paste0(work_dir, "/data/deduped_BAM")
 if(!file.exists(deduped_out)) { dir.create(deduped_out, recursive = TRUE) }
 
@@ -196,14 +193,13 @@ deduped_file <- paste0(deduped_out, "/", basename(opt$input_file), "_deduped.BAM
 
 
 deduped_cmd <- paste0("(umi_tools dedup -I \"", bam_out, "\" --paired --umi-separator=\":\" --output-stats=\"",
-                      deduped_log, "/", basename(opt$input_file), "\" -S \"", deduped_out, "/", deduped_file, "\") 2>&1 \"",
+                      deduped_log, "/", basename(opt$input_file), "\" -S \"", deduped_file, "\") 2>&1 \"",
                       deduped_log, "/", basename(opt$input_file), "_deduped.log && samtools index \"", deduped_file, "\"")
 
 execute(deduped_cmd, deduped_file)
 
 
 # Step 5: Generating bigwig files for visualization ####
-
 
 bigwig_out <- paste0(work_dir, "/data/bw")
 if(!file.exists(bigwig_out)) { dir.create(bigwig_out, recursive = TRUE) }
@@ -231,8 +227,11 @@ execute(fwd_cmd, fwd_out)
 execute(rev_cmd, rev_out)
 
 
-tmp_dir <- paste0(workdir, "/tmp")
+# Step 5.1: Invert values of rev strand bigwig for visualization ####
+
+tmp_dir <- paste0(work_dir, "/tmp")
 if(!file.exists(tmp_dir)) { dir.create(tmp_dir, recursive = TRUE) }
+
 
 inv_cmd <- paste0("bigWigToBedGraph ", rev_out, " \"", tmp_dir, "/", basename(opt$input_file), ".bedgraph\" && cat \"",
                   tmp_dir, "/", basename(opt$input_file), ".bedgraph\" | awk 'BEGIN{OFS=\"t\"} {print $1,$2,$3,-1*$4}' | sort -S 2G -k1,1, -k2,2n > \"",
@@ -240,42 +239,5 @@ inv_cmd <- paste0("bigWigToBedGraph ", rev_out, " \"", tmp_dir, "/", basename(op
                   "_inv.bedgraph\" ", opt$chrom_sizes, " \"", inv_out, "\"")
 
 execute(inv_cmd, inv_out)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
