@@ -13,7 +13,7 @@ option_list <- list(
   make_option(c("--rdna_index"), type = "character",
               default = "/home/cluster/o_heiningc/data/genome_indices/mouse_rDNA/bowtie2_index/mm_rdna_bt2",
               help = "Path to rDNA index to remove rDNA from reads [default %default]", metavar = "character"),
-  make_option(c("-t", "--threads"), type = "interger", default = NULL,
+  make_option(c("-t", "--threads"), type = "integer", default = NULL,
               help = "Number of threads for pipeline (SLURM!)", metavar = "integer"),
   make_option(c("--adapter_r1"), type = "character", default = "TGGAATTCTCGGGTGCCAAGGAACTCCAGTCAC",
               help = "Sequence for read1 adapter to be trimmed [default %default]", metavar = "character"),
