@@ -131,10 +131,10 @@ if(!file.exists(cutadapt_log)) { dir.create(cutadapt_log, recursive = TRUE) }
 cutadapt_threads <- as.integer(threads / 3)
 
 
-cutadapt_cmd <- paste0("cutadapt -g ^\"N{6}A\" -G ^\"N{6}C\" --discard-untrimmed --action=retain --cores=",
+cutadapt_cmd <- paste0("(cutadapt -g ^\"N{6}A\" -G ^\"N{6}C\" --discard-untrimmed --action=retain --cores=",
                        cutadapt_threads, " --pair-filter=both ", read_1, " ", read_2,
                        " -o ", cutadapt_out, "/", basename(read_1), " -p ", cutadapt_out, "/", basename(read_2),
-                       " 2>&1 ", cutadapt_log, "/", basename(opt$input_file), "_cutadapt.log")
+                       ") 2>&1 ", cutadapt_log, "/", basename(opt$input_file), "_cutadapt.log")
 
 execute(cutadapt_cmd, outputfile = paste0(cutadapt_out, "/", basename(read_1)))
 
