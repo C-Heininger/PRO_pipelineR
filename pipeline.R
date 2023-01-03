@@ -1,7 +1,7 @@
 
 # Read command line arguments through optparse package ####
 
-library(optparse)
+suppressPackageStartupMessages(require(optparse))
 
 option_list <- list(
   make_option(c("-i", "--input_file"), type = "character", default = NULL,
@@ -12,19 +12,23 @@ option_list <- list(
               help = "Path to working directory", metavar = "character"),
   make_option(c("--rdna_index"), type = "character",
               default = "/home/cluster/o_heiningc/data/genome_indices/mouse_rDNA/bowtie2_index/mm_rdna_bt2",
-              help = "Path to rDNA index to remove rDNA from reads", metavar = "character"),
+              help = "Path to rDNA index to remove rDNA from reads [default %default]", metavar = "character"),
   make_option(c("-t", "--threads"), type = "interger", default = NULL,
               help = "Number of threads for pipeline (SLURM!)", metavar = "integer"),
   make_option(c("--adapter_r1"), type = "character", default = "TGGAATTCTCGGGTGCCAAGGAACTCCAGTCAC",
-              help = "Sequence for read1 adapter to be trimmed", metavar = "character"),
+              help = "Sequence for read1 adapter to be trimmed [default %default]", metavar = "character"),
   make_option(c("--adapter_r2"), type = "character", default = "GATCGTCGGACTGTAGAACTCTGAACGTGTAGATCTCGGTGGTCGCCGTATCATT",
-              help = "Sequence for read2 adapter to be trimmed", metavar = "character"),
+              help = "Sequence for read2 adapter to be trimmed [default %default]", metavar = "character"),
   make_option(c("--genome_index"), type = "character",
               default = "home/gpfs/o_heiningc/data/genome_indices/mm39/STAR_index/",
-              help = "Path to genome index for alignment", metavar = "character"),
+              help = "Path to genome index for alignment [default %default]", metavar = "character"),
   make_option(c("--chrom_sizes"), type = "character",
               default = "home/cluster/o_heiningc/data/genome_indices/GRCm39/STAR_index/chrNameLength.txt",
-              help = "Path to file containing chromosome sizes", metavar = "character")
+              help = "Path to file containing chromosome sizes [default %default]", metavar = "character"),
+  make_option(c("-v", "--verbose"), action = "store", default = TRUE,
+              help = "Have the program print information [default %default]"),
+  make_option(c("-q", "--quiet"), action = "store_false", dest = "verbose",
+              help = "Turn off verbose")
 )
 
 
@@ -45,6 +49,43 @@ if(is.null(opt$work_dir)) {
 if(is.null(opt$threads)) {
   print_help(opt_parser)
   stop("Please supply number of threads to be used for pipeline.n")
+}
+
+
+if(opt$verbose) {
+  
+  # Print the input file
+  cat("Input_file:\n")
+  cat(opt$input_file)
+  
+  # Print the working directory path
+  cat("\n\nWorking directory:\n")
+  cat(opt$work_dir)
+  
+  # Print rDNA index path
+  cat("\n\nPath to rDNA index:\n")
+  cat(opt$rdna_index)
+  
+  # Print number of threads for pipeline
+  cat("\n\nNumber of threads:\n")
+  cat(opt$threads)
+  
+  # Print read1 adapter to be trimmed
+  cat("\n\nRead1 adapter to trim:\n")
+  cat(opt$adapter_r1)
+  
+  # Print read2 adapter to be trimmed
+  cat("\n\nRead2 adapter to trim:\n")
+  cat(opt$adapter_r2)
+  
+  # Print genome index path
+  cat("\n\nPath to genome index:\n")
+  cat(opt$genome_index)
+  
+  # Print chromosome sizes path
+  cat("\n\nPath to chrom.sizes:\n")
+  cat(opt$chrom_sizes)
+  
 }
 
 
