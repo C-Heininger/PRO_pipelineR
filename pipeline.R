@@ -97,8 +97,8 @@ work_dir <- opt$work_dir
 logs_dir <- paste0(work_dir, "/analysis/logs")
 if(!file.exists(logs_dir)) { dir.create(logs_dir, recursive = TRUE) }
 
-read_1 <- paste0(opt$input_file, "_R1.fastq")
-read_2 <- paste0(opt$input_file, "_R2.fastq")
+read_1 <- paste0(work_dir, "/", opt$input_file, "_R1.fastq")
+read_2 <- paste0(work_dir, "/", opt$input_file, "_R2.fastq")
 
 
 threads <- as.integer(opt$threads)
